@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=LimeTasks
+GenericName=Tasks
+Comment=Lightweight tasks for your desktop
+Exec=lime-tasks
+TryExec=lime-tasks
+Icon=limetasks
+Terminal=false
+Categories=Office;ProjectManagement;
+Keywords=todo;tasks;checklist;
+StartupNotify=false

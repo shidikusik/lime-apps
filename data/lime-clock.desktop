@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=LimeClock
+GenericName=Clock and Timers
+Comment=Lightweight clock and timers for your desktop
+Exec=lime-clock
+TryExec=lime-clock
+Icon=limeclock
+Terminal=false
+Categories=Utility;Clock;
+Keywords=clock;time;timer;stopwatch;
+StartupNotify=false

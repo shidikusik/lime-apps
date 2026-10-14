@@ -1,0 +1,190 @@
+name: Build and test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  NO_AT_BRIDGE: '1'
+
+jobs:
+  source:
+    runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ steps.archive.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Archive the exact source commit
+        id: archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^VERSION := //p' Makefile)
+          test -n "$version"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            test "${GITHUB_REF#refs/tags/v}" = "$version"
+          fi
+          git archive --format=tar --prefix="lime-apps-$version/" HEAD | gzip -n > "lime-apps-$version.tar.gz"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source
+          path: lime-apps-*.tar.gz
+          if-no-files-found: error
+
+  debian:
+    needs: source
+    runs-on: ubuntu-22.04
+    container: ubuntu:22.04
+    steps:
+      - name: Install build and smoke-test dependencies
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential pkg-config libgtk-3-dev dpkg-dev fakeroot binutils xvfb xauth fonts-dejavu-core dbus-x11 ca-certificates
+      - uses: actions/download-artifact@v4
+        with:
+          name: source
+          path: /tmp/lime-source
+      - name: Build and test on Ubuntu 22.04
+        env:
+          GDK_BACKEND: x11
+          GTK_A11Y: none
+        run: |
+          tar -xzf /tmp/lime-source/lime-apps-*.tar.gz --strip-components=1
+          make -j2 test
+          dbus-run-session -- xvfb-run -a make smoke
+          ./packaging/build-deb.sh dist
+          dpkg-deb --info dist/*.deb
+          dpkg-deb --contents dist/*.deb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: debian-package
+          path: dist/*.deb
+          if-no-files-found: error
+
+  debian-install:
+    needs: debian
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        container: ['debian:12', 'ubuntu:24.04']
+    container: ${{ matrix.container }}
+    steps:
+      - name: Install test display dependencies
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends xvfb xauth fonts-dejavu-core dbus-x11 ca-certificates
+      - uses: actions/download-artifact@v4
+        with:
+          name: debian-package
+          path: /tmp/lime-deb
+      - name: Install, open all apps, and verify data survives removal
+        env:
+          GDK_BACKEND: x11
+          GTK_A11Y: none
+        shell: bash
+        run: |
+          set -euo pipefail
+          apt-get install -y /tmp/lime-deb/*.deb
+          for app in calc notes tasks view clock; do
+            lime-$app --version
+            dbus-run-session -- xvfb-run -a env LIME_SMOKE_TEST=1 G_DEBUG=fatal-warnings lime-$app
+          done
+          test "$(lime-calc --eval '2+3*4')" = 14
+          mkdir -p "$HOME/.local/share/lime-apps"
+          printf 'keep me\n' > "$HOME/.local/share/lime-apps/packaging-preserved.txt"
+          dpkg --remove lime-apps
+          test "$(cat "$HOME/.local/share/lime-apps/packaging-preserved.txt")" = 'keep me'
+
+  fedora:
+    needs: source
+    runs-on: ubuntu-22.04
+    container: fedora:43
+    steps:
+      - name: Install build and smoke-test dependencies
+        run: dnf install -y gcc make pkgconf-pkg-config gtk3-devel rpm-build redhat-rpm-config xorg-x11-server-Xvfb xorg-x11-xauth dbus-x11 dejavu-sans-fonts ca-certificates
+      - uses: actions/download-artifact@v4
+        with:
+          name: source
+          path: /tmp/lime-source
+      - name: Build, install and smoke-test the RPM on Fedora 43
+        env:
+          GDK_BACKEND: x11
+          GTK_A11Y: none
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -xzf /tmp/lime-source/lime-apps-*.tar.gz --strip-components=1
+          make -j2 test
+          dbus-run-session -- xvfb-run -a make smoke
+          mkdir -p /tmp/lime-rpm/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS} dist
+          cp /tmp/lime-source/lime-apps-*.tar.gz /tmp/lime-rpm/SOURCES/
+          rpmbuild --define '_topdir /tmp/lime-rpm' -ba packaging/lime-apps.spec
+          cp /tmp/lime-rpm/RPMS/x86_64/lime-apps-[0-9]*.rpm dist/
+          dnf install -y dist/*.rpm
+          for app in calc notes tasks view clock; do
+            dbus-run-session -- xvfb-run -a env LIME_SMOKE_TEST=1 G_DEBUG=fatal-warnings lime-$app
+          done
+          mkdir -p "$HOME/.local/share/lime-apps"
+          printf 'keep me\n' > "$HOME/.local/share/lime-apps/packaging-preserved.txt"
+          rpm -e lime-apps
+          test "$(cat "$HOME/.local/share/lime-apps/packaging-preserved.txt")" = 'keep me'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rpm-package
+          path: dist/*.rpm
+          if-no-files-found: error
+
+  arch:
+    needs: source
+    runs-on: ubuntu-22.04
+    container: archlinux:base-devel
+    steps:
+      - name: Install build and smoke-test dependencies
+        run: pacman -Syu --noconfirm --needed gtk3 pkgconf xorg-server-xvfb xorg-xauth ttf-dejavu dbus git
+      - uses: actions/download-artifact@v4
+        with:
+          name: source
+          path: /tmp/lime-source
+      - name: Build a checksummed package as a normal user
+        env:
+          GDK_BACKEND: x11
+          GTK_A11Y: none
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -xzf /tmp/lime-source/lime-apps-*.tar.gz --strip-components=1
+          mkdir -p /tmp/lime-arch dist
+          cp packaging/PKGBUILD /tmp/lime-arch/PKGBUILD
+          cp /tmp/lime-source/lime-apps-*.tar.gz /tmp/lime-arch/
+          source_sha=$(sha256sum /tmp/lime-arch/lime-apps-*.tar.gz | cut -d' ' -f1)
+          sed -i "s/sha256sums=('SKIP')/sha256sums=('$source_sha')/" /tmp/lime-arch/PKGBUILD
+          useradd --create-home builder
+          chown -R builder:builder /tmp/lime-arch
+          runuser -u builder -- bash -c 'cd /tmp/lime-arch && makepkg --noconfirm'
+          cp /tmp/lime-arch/lime-apps-*.pkg.tar.zst dist/
+          cp /tmp/lime-arch/PKGBUILD dist/PKGBUILD
+          pacman -U --noconfirm dist/*.pkg.tar.zst
+          for app in calc notes tasks view clock; do
+            lime-$app --version
+            dbus-run-session -- xvfb-run -a env LIME_SMOKE_TEST=1 G_DEBUG=fatal-warnings lime-$app
+          done
+          test "$(lime-calc --eval 'sqrt(81)')" = 9
+          mkdir -p "$HOME/.local/share/lime-apps"
+          printf 'keep me\n' > "$HOME/.local/share/lime-apps/packaging-preserved.txt"
+          pacman -R --noconfirm lime-apps
+          test "$(cat "$HOME/.local/share/lime-apps/packaging-preserved.txt")" = 'keep me'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arch-package
+          path: |
+            dist/*.pkg.tar.zst
+            dist/PKGBUILD
+          if-no-files-found: error

@@ -1,0 +1,31 @@
+# Maintainer: shidikusik <200198680+shidikusik@users.noreply.github.com>
+pkgname=lime-apps
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Lightweight native desktop applications for LimeOS'
+arch=('x86_64')
+url='https://github.com/shidikusik/lime-apps'
+license=('MIT')
+depends=('gtk3')
+makedepends=('gcc' 'make' 'pkgconf')
+options=('!debug')
+source=("$pkgname-$pkgver.tar.gz::$url/releases/download/v$pkgver/$pkgname-$pkgver.tar.gz")
+# Bootstrap source checksum. Release CI replaces this with the exact SHA-256
+# and publishes the resulting PKGBUILD beside the source and native packages.
+# Use the release PKGBUILD for a verified local build of this first release.
+sha256sums=('SKIP')
+
+build() {
+    cd "$pkgname-$pkgver"
+    make
+}
+
+check() {
+    cd "$pkgname-$pkgver"
+    make test
+}
+
+package() {
+    cd "$pkgname-$pkgver"
+    make install DESTDIR="$pkgdir" PREFIX=/usr
+}

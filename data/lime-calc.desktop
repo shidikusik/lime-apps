@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=LimeCalc
+GenericName=Calculator
+Comment=Lightweight calculator for your desktop
+Exec=lime-calc
+TryExec=lime-calc
+Icon=limecalc
+Terminal=false
+Categories=Utility;Calculator;
+Keywords=calculate;math;
+StartupNotify=false

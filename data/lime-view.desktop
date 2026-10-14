@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=LimeView
+GenericName=Image Viewer
+Comment=Lightweight image viewer for your desktop
+Exec=lime-view %f
+TryExec=lime-view
+Icon=limeview
+Terminal=false
+Categories=Graphics;Viewer;
+Keywords=image;photo;picture;
+StartupNotify=false
+MimeType=image/png;image/jpeg;image/webp;image/bmp;image/gif;image/tiff;

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=LimeNotes
+GenericName=Notes
+Comment=Lightweight notes for your desktop
+Exec=lime-notes
+TryExec=lime-notes
+Icon=limenotes
+Terminal=false
+Categories=Utility;TextEditor;
+Keywords=notes;write;
+StartupNotify=false
