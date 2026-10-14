@@ -6,6 +6,7 @@
 
 static const char css[] =
 "window { background: @lime_c0; color: @lime_c1; }"
+"window decoration { background: @lime_c0; border: 1px solid @lime_c17; box-shadow: none; }"
 "headerbar { background: @lime_c2; color: @lime_c1; border-bottom: 1px solid @lime_c3; box-shadow: none; min-height: 34px; padding: 4px 8px; }"
 "headerbar .title { font-size: 12px; font-weight: 600; }"
 "headerbar .subtitle { font-size: 10px; color: @lime_c4; }"
@@ -36,7 +37,7 @@ static const char css[] =
 "list row:hover { background: @lime_c27; }"
 "scrolledwindow { border-color: @lime_c28; }"
 "separator { background: @lime_c17; min-width: 1px; min-height: 1px; }"
-"stack, notebook, notebook > stack { background: @lime_c0; }"
+"stack, notebook, notebook > stack { background: @lime_c0; border-color: @lime_c17; }"
 "notebook > header { background: @lime_c29; border-color: @lime_c17; }"
 "notebook > header tab { color: @lime_c4; padding: 7px 16px; }"
 "notebook > header tab:checked { color: @lime_c30; border-color: @lime_c12; box-shadow: inset 0 -2px @lime_c12; }"
@@ -52,6 +53,7 @@ static const char css[] =
 "menuitem:hover, menuitem:selected, modelbutton:hover, modelbutton:selected { background: @lime_c12; color: @lime_c13; }"
 "selection { background: @lime_c19; color: @lime_c20; }"
 "infobar, infobar.info, infobar.warning, infobar.error, infobar revealer > box { background: @lime_c22; color: @lime_c1; border-color: @lime_c17; }"
+"infobar label { color: @lime_c1; }"
 ".linked > button { border-color: @lime_c6; }"
 "scrollbar { background: transparent; }"
 "scrollbar slider { background: @lime_c33; border-radius: 6px; min-width: 5px; min-height: 5px; }"

@@ -318,6 +318,9 @@ static gboolean key_pressed(GtkWidget *widget, GdkEventKey *event, gpointer data
 {
     (void)widget;
     Viewer *v = data;
+    GtkWidget *focus = gtk_window_get_focus(GTK_WINDOW(v->window));
+    for (GtkWidget *parent = focus; parent; parent = gtk_widget_get_parent(parent))
+        if (GTK_IS_COMBO_BOX(parent)) return FALSE;
     if ((event->state & GDK_CONTROL_MASK) && (event->keyval == GDK_KEY_o || event->keyval == GDK_KEY_O)) {
         open_image(NULL, v);
         return TRUE;

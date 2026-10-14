@@ -268,7 +268,10 @@ static gboolean key_pressed(GtkWidget *widget, GdkEventKey *event, gpointer data
         clear_alarm(c);
         return TRUE;
     }
-    if (GTK_IS_EDITABLE(gtk_window_get_focus(GTK_WINDOW(c->window)))) return FALSE;
+    GtkWidget *focus = gtk_window_get_focus(GTK_WINDOW(c->window));
+    if (GTK_IS_EDITABLE(focus)) return FALSE;
+    for (GtkWidget *parent = focus; parent; parent = gtk_widget_get_parent(parent))
+        if (GTK_IS_COMBO_BOX(parent)) return FALSE;
     if (event->keyval == GDK_KEY_space) {
         if (c->page == 1) stopwatch_toggle(GTK_BUTTON(c->stopwatch_button), c);
         else if (c->page == 2) timer_toggle(GTK_BUTTON(c->timer_button), c);

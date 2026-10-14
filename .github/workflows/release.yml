@@ -38,7 +38,11 @@ jobs:
           test -n "$(find . -maxdepth 1 -name '*.pkg.tar.zst' -print -quit)"
           sha256sum ./*.deb ./*.rpm ./*.pkg.tar.zst ./*.tar.gz ./PKGBUILD > SHA256SUMS
           cat > release-notes.md <<'NOTES'
-          Five native C/GTK3 applications: LimeCalc, LimeNotes, LimeTasks, LimeView and LimeClock.
+          Five lightweight native C/GTK3 applications made primarily for LimeOS:
+          LimeCalc, LimeNotes, LimeTasks, LimeView and LimeClock.
+
+          Four appearance options: System, Light, Dark and Lime. Light and Dark are monochrome.
+          Author and maintainer: @shidikusik.
 
           Downloads are for x86_64 Linux:
           - `.deb`: built on Ubuntu 22.04; installed and smoke-tested on Debian 12 and Ubuntu 24.04.

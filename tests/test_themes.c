@@ -33,6 +33,52 @@ static GdkRGBA color(GtkWidget *widget, const char *name)
     return result;
 }
 
+static gboolean finish_frame(gpointer data)
+{
+    g_main_loop_quit(data);
+    return G_SOURCE_REMOVE;
+}
+
+static void assert_rendered_palette(GtkWidget *window, gboolean monochrome)
+{
+    /* Check actual widget paint, which also catches inherited GTK accent colors. */
+    GMainLoop *loop = g_main_loop_new(NULL, FALSE);
+    gtk_widget_queue_draw(window);
+    g_timeout_add(60, finish_frame, loop);
+    g_main_loop_run(loop);
+    g_main_loop_unref(loop);
+    int width = gtk_widget_get_allocated_width(window);
+    int height = gtk_widget_get_allocated_height(window);
+    cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
+    cairo_t *cr = cairo_create(surface);
+    gtk_widget_draw(window, cr);
+    cairo_destroy(cr);
+    cairo_surface_flush(surface);
+    unsigned char *pixels = cairo_image_surface_get_data(surface);
+    int stride = cairo_image_surface_get_stride(surface);
+    guint colored_pixels = 0;
+    for (int y = 0; y < height; ++y) {
+        guint32 *row = (guint32 *)(pixels + y * stride);
+        for (int x = 0; x < width; ++x) {
+            unsigned alpha = row[x] >> 24;
+            unsigned red = (row[x] >> 16) & 255;
+            unsigned green = (row[x] >> 8) & 255;
+            unsigned blue = row[x] & 255;
+            if (alpha > 128 && MAX(red, MAX(green, blue)) - MIN(red, MIN(green, blue)) > 3)
+                ++colored_pixels;
+        }
+    }
+    if (monochrome && colored_pixels) {
+        char *path = g_build_filename(config_directory, "render-failure.png", NULL);
+        cairo_surface_write_to_png(surface, path);
+        g_test_message("Unexpected accent pixels; widget rendering saved to %s", path);
+        g_free(path);
+    }
+    cairo_surface_destroy(surface);
+    if (monochrome) g_assert_cmpuint(colored_pixels, ==, 0);
+    else g_assert_cmpuint(colored_pixels, >, 20);
+}
+
 static void assert_palette(GtkWidget *window, const char *theme)
 {
     GdkRGBA background = color(window, "lime_c0");
@@ -102,6 +148,18 @@ static void test_appearance(void)
     }
     lime_init();
     GtkWidget *window = lime_window("Theme test", "Appearance integration", 480, 320);
+    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_container_add(GTK_CONTAINER(window), box);
+    GtkWidget *notice = gtk_info_bar_new();
+    gtk_info_bar_set_message_type(GTK_INFO_BAR(notice), GTK_MESSAGE_INFO);
+    gtk_container_add(GTK_CONTAINER(gtk_info_bar_get_content_area(GTK_INFO_BAR(notice))),
+                      gtk_label_new("A completed timer"));
+    gtk_box_pack_start(GTK_BOX(box), notice, FALSE, FALSE, 0);
+    GtkWidget *notebook = gtk_notebook_new();
+    gtk_notebook_append_page(GTK_NOTEBOOK(notebook), lime_button("Start", "suggested-action"), gtk_label_new("Clock"));
+    gtk_notebook_append_page(GTK_NOTEBOOK(notebook), gtk_label_new("00:00:00"), gtk_label_new("Timer"));
+    gtk_box_pack_start(GTK_BOX(box), notebook, TRUE, TRUE, 0);
+    gtk_widget_show_all(window);
     GtkWidget *selector = find_selector(gtk_window_get_titlebar(GTK_WINDOW(window)));
     g_assert_nonnull(selector);
     g_assert_cmpstr(gtk_combo_box_get_active_id(GTK_COMBO_BOX(selector)), ==, "system");
@@ -110,7 +168,10 @@ static void test_appearance(void)
         g_assert_true(gtk_combo_box_set_active_id(GTK_COMBO_BOX(selector), themes[i]));
         drain_events();
         assert_saved_theme(themes[i]);
-        if (strcmp(themes[i], "system")) assert_palette(window, themes[i]);
+        if (strcmp(themes[i], "system")) {
+            assert_palette(window, themes[i]);
+            assert_rendered_palette(window, strcmp(themes[i], "lime") != 0);
+        }
         assert_fresh_process(themes[i], NULL);
     }
 
@@ -183,6 +244,7 @@ int main(int argc, char **argv)
     test_binary = g_canonicalize_filename(argv[0], NULL);
     g_test_init(&argc, &argv, NULL);
     have_display = gtk_init_check(&argc, &argv);
+    if (have_display) g_object_set(gtk_settings_get_default(), "gtk-enable-animations", FALSE, NULL);
     g_test_add_func("/appearance/palettes-persistence-system-changes", test_appearance);
     int result = g_test_run();
     char *path = g_build_filename(config_directory, "lime-apps", "appearance.ini", NULL);
