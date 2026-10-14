@@ -40,7 +40,7 @@ Maintainer: shidikusik <200198680+shidikusik@users.noreply.github.com>
 Section: utils
 Priority: optional
 Homepage: https://github.com/shidikusik/lime-apps
-Depends: $package_dependencies
+Depends: $package_dependencies, librsvg2-common, shared-mime-info
 Installed-Size: $package_size
 Description: Lightweight native desktop applications for LimeOS
  Five small C and GTK3 applications: LimeCalc, LimeNotes, LimeTasks,

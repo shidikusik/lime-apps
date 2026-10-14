@@ -29,11 +29,19 @@ build/lime-%: src/%.c src/common.h build/common.o
 build/test-calc: tests/test_calc.c src/calc_engine.c src/calc_engine.h | build
 	$(CC) $(CFLAGS) -Isrc tests/test_calc.c src/calc_engine.c -lm -o $@
 
-test: all build/test-calc
+build/test-storage: tests/test_storage.c src/notes.c src/tasks.c build/common.o
+	$(CC) $(CPPFLAGS) $(CFLAGS) tests/test_storage.c build/common.o $(LDFLAGS) $(LDLIBS) -o $@
+
+build/test-themes: tests/test_themes.c build/common.o
+	$(CC) $(CPPFLAGS) $(CFLAGS) -Isrc tests/test_themes.c build/common.o $(LDFLAGS) $(LDLIBS) -o $@
+
+test: all build/test-calc build/test-storage
 	./build/test-calc
+	./build/test-storage
 	@for app in $(BINARIES); do $$app --version; done
 
-smoke: all
+smoke: all build/test-themes
+	G_DEBUG=fatal-warnings ./build/test-themes
 	@for app in $(BINARIES); do echo "Smoke: $$app"; LIME_SMOKE_TEST=1 G_DEBUG=fatal-warnings $$app || exit 1; done
 
 install: all
